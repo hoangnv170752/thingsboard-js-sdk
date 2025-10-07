@@ -22,36 +22,71 @@ class tbClient {
         }
     }
 
+    // Connect to Thingsboard
+    // return {token: token, user: user} or null
     async connect(isPublic = false) {
+
         let result;
 
-        if (isPublic === true) {
+        // If token is already provided (SSO login from mobile app)
+        if (this.config.token) {
+
+            try {
+                // Verify token by getting user info
+                const userInfo = await this.api.get('/api/auth/user')
+                    .then(function (response) {
+                        return response.data;
+                    })
+                    .catch(function (error) {
+                        console.error('Token verification failed:', error);
+                        return null;
+                    });
+
+                if (userInfo) {
+                    result = {
+                        token: this.config.token,
+                        user: JSON.stringify(userInfo)
+                    };
+                } else {
+                    return null;
+                }
+
+            } catch (error) {
+                console.error('Error verifying token:', error);
+                return null;
+            }
+
+        } else if (isPublic === true) {
+
             result = await this.api.post('/api/auth/login/public', { publicId: this.config.publicId })
                 .then(function (response) {
+
                     return {
                         token: response.data.token,
                         user: null
                     }
+
                 })
                 .catch(function (error) {
-                    console.error('Connection error:', error);
                     return null;
                 });
+
         } else {
-            result = await this.api.post('/api/auth/login', { 
-                username: this.config.username, 
-                password: this.config.password 
-            })
+
+            result = await this.api.post('/api/auth/login', { username: this.config.username, password: this.config.password })
                 .then(function (response) {
+
                     return {
                         token: response.data.token,
                         user: JSON.stringify(jwt_decode(response.data.token))
                     };
+
                 })
                 .catch(function (error) {
-                    console.error('Connection error:', error);
+                    console.error(error)
                     return null;
                 });
+
         }
 
         if (result) {
@@ -61,6 +96,53 @@ class tbClient {
         } else {
             return null;
         }
+
+    }
+
+    // Connect with existing token (for SSO/mobile apps)
+    async connectWithToken(token) {
+
+        if (!token) {
+            console.error('Token is required');
+            return null;
+        }
+
+        // Update config and api instance with token
+        this.config.token = token;
+        this.token = token;
+        this.api = api(this.config.host, token);
+
+        try {
+            // Verify token by getting user info
+            const userInfo = await this.api.get('/api/auth/user')
+                .then(function (response) {
+                    return response.data;
+                })
+                .catch(function (error) {
+                    console.error('Token verification failed:', error);
+                    return null;
+                });
+
+            if (userInfo) {
+                return {
+                    token: token,
+                    user: JSON.stringify(userInfo)
+                };
+            } else {
+                // Reset if token is invalid
+                this.token = null;
+                this.api = api(this.config.host, null);
+                return null;
+            }
+
+        } catch (error) {
+            console.error('Error verifying token:', error);
+            // Reset if error
+            this.token = null;
+            this.api = api(this.config.host, null);
+            return null;
+        }
+
     }
 
     // Disconnect
