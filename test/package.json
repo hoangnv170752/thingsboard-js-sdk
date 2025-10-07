@@ -1,0 +1,21 @@
+{
+  "name": "thingsboard-js-sdk-test",
+  "version": "1.0.0",
+  "description": "Browser-based test application for ThingsBoard JS SDK",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "thingsboard",
+    "test",
+    "sdk",
+    "iot"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.0.3"
+  }
+}
