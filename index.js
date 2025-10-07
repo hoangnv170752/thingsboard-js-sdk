@@ -320,6 +320,246 @@ class tbClient{
 
   }
 
+  // Get device info by ID
+  getDeviceInfo(deviceId, callback = null) {
+    if (!deviceId) {
+      console.error('deviceId is undefined');
+      callback && callback(null);
+      return null;
+    }
+
+    return this.api.get(`/api/device/${deviceId}`)
+      .then(function (response) {
+        callback && callback(response.data);
+        return response.data;
+      })
+      .catch(function (error) {
+        console.error('Error fetching device info:', error);
+        callback && callback(null);
+        return null;
+      });
+  }
+
+  // Get all dashboards
+  getDashboards(params = {}, callback = null) {
+    const pageSize = params.pageSize || 100;
+    const page = params.page || 0;
+
+    return this.api.get(`/api/tenant/dashboards?pageSize=${pageSize}&page=${page}`)
+      .then(function (response) {
+        callback && callback(response.data.data);
+        return response.data.data;
+      })
+      .catch(function (error) {
+        console.error('Error fetching dashboards:', error);
+        callback && callback(null);
+        return null;
+      });
+  }
+
+  // Get dashboard info by ID
+  getDashboardInfo(dashboardId, callback = null) {
+    if (!dashboardId) {
+      console.error('dashboardId is undefined');
+      callback && callback(null);
+      return null;
+    }
+
+    return this.api.get(`/api/dashboard/${dashboardId}`)
+      .then(function (response) {
+        callback && callback(response.data);
+        return response.data;
+      })
+      .catch(function (error) {
+        console.error('Error fetching dashboard info:', error);
+        callback && callback(null);
+        return null;
+      });
+  }
+
+  // Make dashboard public and get public link
+  makeDashboardPublic(dashboardId, callback = null) {
+    if (!dashboardId) {
+      console.error('dashboardId is undefined');
+      callback && callback(null);
+      return null;
+    }
+
+    return this.api.post(`/api/customer/public/dashboard/${dashboardId}`)
+      .then(function (response) {
+        callback && callback(response.data);
+        return response.data;
+      })
+      .catch(function (error) {
+        console.error('Error making dashboard public:', error);
+        callback && callback(null);
+        return null;
+      });
+  }
+
+  // Remove public access from dashboard
+  removeDashboardPublic(dashboardId, callback = null) {
+    if (!dashboardId) {
+      console.error('dashboardId is undefined');
+      callback && callback(null);
+      return null;
+    }
+
+    return this.api.delete(`/api/customer/public/dashboard/${dashboardId}`)
+      .then(function (response) {
+        callback && callback(response.data);
+        return response.data;
+      })
+      .catch(function (error) {
+        console.error('Error removing public dashboard:', error);
+        callback && callback(null);
+        return null;
+      });
+  }
+
+  // Get public dashboard info (no authentication required)
+  getPublicDashboardInfo(publicId, callback = null) {
+    if (!publicId) {
+      console.error('publicId is undefined');
+      callback && callback(null);
+      return null;
+    }
+
+    // Create API instance without token for public access
+    const publicApi = axios.create({
+      baseURL: `https://${this.config.host}`,
+      responseType: "json"
+    });
+
+    return publicApi.get(`/api/dashboard/info/${publicId}`)
+      .then(function (response) {
+        callback && callback(response.data);
+        return response.data;
+      })
+      .catch(function (error) {
+        console.error('Error fetching public dashboard info:', error);
+        callback && callback(null);
+        return null;
+      });
+  }
+
+  // Get public dashboard link
+  getPublicDashboardLink(dashboardId, callback = null) {
+    if (!dashboardId) {
+      console.error('dashboardId is undefined');
+      callback && callback(null);
+      return null;
+    }
+
+    return this.api.post(`/api/customer/public/dashboard/${dashboardId}`)
+      .then((response) => {
+        // Extract publicId from different possible locations
+        let publicId = response.data.publicId || 
+                      response.data.id?.id || 
+                      response.data.id ||
+                      dashboardId;
+        
+        const publicLink = `https://${this.config.host}/dashboard/${publicId}`;
+        const result = {
+          ...response.data,
+          publicId: publicId,
+          publicLink: publicLink,
+          dashboardId: dashboardId
+        };
+        callback && callback(result);
+        return result;
+      })
+      .catch(function (error) {
+        console.error('Error getting public dashboard link:', error);
+        callback && callback(null);
+        return null;
+      });
+  }
+
+  // Get current user info
+  getUserInfo(callback = null) {
+    return this.api.get('/api/auth/user')
+      .then(function (response) {
+        callback && callback(response.data);
+        return response.data;
+      })
+      .catch(function (error) {
+        console.error('Error fetching user info:', error);
+        callback && callback(null);
+        return null;
+      });
+  }
+
+  // Get tenant users
+  getTenantUsers(params = {}, callback = null) {
+    const pageSize = params.pageSize || 100;
+    const page = params.page || 0;
+
+    return this.api.get(`/api/tenant/users?pageSize=${pageSize}&page=${page}`)
+      .then(function (response) {
+        callback && callback(response.data.data);
+        return response.data.data;
+      })
+      .catch(function (error) {
+        console.error('Error fetching tenant users:', error);
+        callback && callback(null);
+        return null;
+      });
+  }
+
+  // Get customer users
+  getCustomerUsers(params = {}, callback = null) {
+    const pageSize = params.pageSize || 100;
+    const page = params.page || 0;
+    const customerId = params.customerId;
+
+    // If customerId is provided, get users for specific customer
+    // Otherwise, get all customers and their users
+    if (customerId) {
+      return this.api.get(`/api/customer/${customerId}/users?pageSize=${pageSize}&page=${page}`)
+        .then(function (response) {
+          callback && callback(response.data.data);
+          return response.data.data;
+        })
+        .catch(function (error) {
+          console.error('Error fetching customer users:', error);
+          callback && callback(null);
+          return null;
+        });
+    } else {
+      // Get all customers first, then get their users
+      return this.api.get(`/api/customers?pageSize=100&page=0`)
+        .then(async (response) => {
+          const customers = response.data.data;
+          if (!customers || customers.length === 0) {
+            callback && callback([]);
+            return [];
+          }
+
+          // Get users for all customers
+          const allUsers = [];
+          for (const customer of customers) {
+            try {
+              const userResponse = await this.api.get(`/api/customer/${customer.id.id}/users?pageSize=${pageSize}&page=${page}`);
+              if (userResponse.data.data) {
+                allUsers.push(...userResponse.data.data);
+              }
+            } catch (error) {
+              console.error(`Error fetching users for customer ${customer.id.id}:`, error);
+            }
+          }
+
+          callback && callback(allUsers);
+          return allUsers;
+        })
+        .catch(function (error) {
+          console.error('Error fetching customers:', error);
+          callback && callback(null);
+          return null;
+        });
+    }
+  }
+
 }
 
 
